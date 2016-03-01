@@ -3,8 +3,23 @@ import numpy as np
 import time
 
 eps = 1e-5
+"""
+In project we apply machine learning algorithms for digit recognition.
+The data is a set of images labelled with a number between 0 and 9, which it is supposed to look like.
+We want to accomplish two tasks:
+1) We want to use logistic regression for seperating all pairs of digits.
+i.e. we need to train a classifier for each pair of labels.
+2) We want to generalize logistic regression to 'softmax' which has k classes, rather than two.
 
+In this file the gradient descent algorithm is implemented to optimize the negative log-likelihood
+function for logistic regression.
 
+We provide both a stochastic gradient descent and a deterministic gradient descent algorithm.
+The stochastic gradient descent is implemented by taking a small random subset of the input, and apply
+normal gradient descent on the subset.
+"""
+
+    
 def tired():
     tired.iteration += 1
     if tired.iteration < tired.max_iterations:
@@ -14,9 +29,19 @@ def tired():
 tired.max_iterations = 100
 tired.iteration = 0
 
+def softmax(x):
+    """
+    Assume x is a numpy array.
+    softmax(x) is used for k-wise classifiers.
+    """
+    c = np.max(x)
+    normalization_factor = np.log(c + np.log(np.sum(x-c)))
+    return np.exp(x-normalization_factor)
+
 def sigmoid(x):
     """
-    Assume x is a numpy array
+    Assume x is a numpy array.
+    sigmoid(x) is used for logistic regression.
     """
     assert np.isfinite(x).all()
     # assert (-746 < x & x < 746).all()
