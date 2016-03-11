@@ -1,5 +1,5 @@
 import numpy as np
-
+import time
 def sigmoid(x):
     """
     Assume x is a numpy array.
@@ -93,15 +93,20 @@ def backpropagation_iteration_matrix(X, Y, activations, weights, bias):
         # dz_{kij} = w_{ij}^\ell a_{kj}(1-a_{kj}) achieved with broad casting, k refers to input number.
 
         # dz.shape = (n x n_{\ell+1} x n_{\ell})
-        curr = np.sum(dz*prev,axis=1) # uhm.. yeah.. this seems to be correct
+        curr = np.sum(dz*prev[:,:,np.newaxis],axis=1) # uhm.. yeah.. this seems to be correct
         # curr.shape = (n,n_{\ell})
         deltas.append(curr)
         prev = curr
 
     assert len(deltas) == len(activations)
-        
-    gradients_w = [(a.T @ d)/n for d, a in zip(deltas[1:], reversed(activations[0:-1]))] # avg gradient.
-    gradients_b = [np.sum(d,axis=0)/n for d in deltas[1:]]
+    deltas.reverse()
+
+    
+    gradients_w = [(d.T @ a)/n for d, a in zip(deltas[1:], activations[:-1])] # avg gradient.
+
+    gradients_b = [np.sum(d,axis=0).reshape(-1,1)/n for d in deltas[1:]]
+
+    assert all(g.shape == w.shape for g, w in zip(gradients_w, weights))
 
     return gradients_w, gradients_b
 
@@ -131,6 +136,7 @@ def feed_forward_iteration_matrix(X, Y, weights, bias):
     assert all(b.shape == (w.shape[0],1) for w, b in zip(weights, bias))
     assert all(w1.shape[0] == w2.shape[1] for w1, w2 in zip(weights[:-1],weights[1:]))
     assert Y.shape == (n,weights[-1].shape[0])
+
     
     """
     Returns the activation of each node in
@@ -145,7 +151,10 @@ def feed_forward_iteration_matrix(X, Y, weights, bias):
 
     return activations
 
-def backpropagation(X, Y, s):
+def regularize(gradient, weights, l=0.0):
+    return [g+l*w for g, w in zip(gradient, weights)]
+
+def backpropagation(X, Y, s, l=0.001):
     """
     We assume the neural network consists of
     n_layers = len(s) layers and layer l has s[l] nodes.
@@ -161,22 +170,30 @@ def backpropagation(X, Y, s):
     # there are s[i]*s[i+1] edges between layers i and i+1
     # W[l][i][j] gives the weight on the edge from node j
     # in layer l to node i in layer l+1.
-    W = [np.random.uniform(size=(s[i+1],s[i])) for i in range(len(s)-1)]
+    W = [np.random.randn(s[i+1],s[i])/s[i+1] for i in range(len(s)-1)]
     bias = [np.ones((s[i+1],1)) for i in range(len(s)-1)]
     iterations_left = 1000
-    eta = 0.1
-    while iterations > 0:
+    eta = 1
+    t0 = time.time()
+    while iterations_left > 0:
         iterations_left -= 1
-        sample = np.random.choice(X.shape[0])
-        x,y = X[sample],Y[sample]
-        activations = feed_forward_iteration(x, y, weights, bias)
-        gradients_w,gradients_b = backpropagation_iteration(x, y, activations, weights, bias)
+        #sample = np.random.choice(X.shape[0])
+        #x,y = X[sample],Y[sample]
+        activations = feed_forward_iteration_matrix(X, Y, W, bias)
+        gradients_w,gradients_b = backpropagation_iteration_matrix(X, Y, activations, W, bias)
+        gradients_w = regularize(gradients_w, W, l)
 
+        cost = np.sum(((activations[-1]-Y)**2))/(2*n)
+        ein = np.sum((activations[-1] > 0.5) != (Y > 0.5))
+        t_now = time.time()
+        print("[%8.4f] %5d %0.5f %5d"%(t_now-t0,iterations_left,cost,ein))
         # update weights and bias.
         W_new = [w-eta*grad_w for w, grad_w in zip(W,gradients_w)]
         W = W_new
-        bias_new = [bias-eta*grad_b for b, grad_b in zip(bias, gradients_b)]
+        bias_new = [b-eta*grad_b for b, grad_b in zip(bias, gradients_b)]
         bias = bias_new
-
+        
+        
+        
     return W, bias
 
